@@ -1,0 +1,36 @@
+### Health
+GET http://localhost:8080/health
+
+### Products
+GET http://localhost:8080/products
+
+### Create order
+POST http://localhost:8080/orders
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "quantity": 1,
+  "customer_email": "student@example.com"
+}
+
+### Discount
+POST http://localhost:8080/orders/discount
+Content-Type: application/json
+
+{
+  "price": 1000,
+  "discount_percent": 0
+}
+
+### Slow request demo
+POST http://localhost:8080/orders
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "quantity": 1,
+  "customer_email": "slow@example.com",
+  "order_number": "SLOW-001",
+  "simulate_slow": true
+}
