@@ -5,9 +5,6 @@
 .DS_Store
 *.log
 
-fixed-version/
-order-monitoring.postman_collection.json
-
 broken-version/.env
 broken-version/api
 broken-version/bin/
