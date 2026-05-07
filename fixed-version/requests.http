@@ -1,0 +1,49 @@
+### Health
+GET http://localhost:8081/health
+
+### Products
+GET http://localhost:8081/products
+
+### Create order
+POST http://localhost:8081/orders
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "quantity": 1,
+  "customer_email": "student@example.com"
+}
+
+### Get order by id
+GET http://localhost:8081/orders/1
+
+### Capture payment for order
+POST http://localhost:8081/orders/1/payments
+
+### List payments for order
+GET http://localhost:8081/orders/1/payments
+
+### Discount
+POST http://localhost:8081/orders/discount
+Content-Type: application/json
+
+{
+  "price": 1000,
+  "discount_percent": 0
+}
+
+### Slow request demo
+POST http://localhost:8081/orders
+Content-Type: application/json
+
+{
+  "product_id": 1,
+  "quantity": 1,
+  "customer_email": "slow@example.com",
+  "order_number": "SLOW-001",
+  "simulate_slow": true
+}
+
+### Race verification from shell
+# ORDER_ID=1
+# seq 1 20 | xargs -I{} -P 20 curl -s -X POST http://localhost:8081/orders/$ORDER_ID/payments

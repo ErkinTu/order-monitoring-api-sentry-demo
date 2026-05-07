@@ -54,10 +54,42 @@ curl -X POST http://localhost:8080/orders           -H "Content-Type: applicatio
 - запрос выполняется примерно 3 секунды;
 - при включенном tracing Sentry может показать медленную транзакцию.
 
+## Ошибка 4: race condition в оплате / double charge под нагрузкой
+
+Сначала создайте заказ с уникальным номером:
+
+```bash
+curl -X POST http://localhost:8080/orders \
+  -H "Content-Type: application/json" \
+  -d '{"product_id":1,"quantity":1,"customer_email":"race@example.com","order_number":"RACE-BROKEN-001"}'
+```
+
+Потом одновременно отправьте несколько запросов на оплату одного и того же заказа:
+
+```bash
+ORDER_ID=1
+seq 1 20 | xargs -I{} -P 20 curl -s -X POST http://localhost:8080/orders/$ORDER_ID/payments
+```
+
+Проверка результата:
+
+```bash
+curl http://localhost:8080/orders/1
+curl http://localhost:8080/orders/1/payments
+```
+
+Ожидаемый результат:
+
+- при обычном одиночном вызове оплата проходит нормально;
+- при конкурентной нагрузке несколько запросов одновременно видят заказ как `pending`;
+- появляется больше одного платежа для одного заказа;
+- `paid_amount` может стать больше `total_price`, то есть заказ оказывается "переплачен".
+
 ## Что показывать на защите
 
 1. Запрос, который вызывает ошибку.
 2. Sentry issue.
 3. Stack trace.
 4. Файл и строку, где ошибка возникла.
-5. Переход к `fixed-version` и повторную проверку.
+5. Нагрузочный сценарий с double charge в оплате.
+6. Переход к `fixed-version` и повторную проверку.

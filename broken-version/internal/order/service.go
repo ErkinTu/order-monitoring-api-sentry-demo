@@ -41,6 +41,8 @@ func (s *Service) Create(ctx context.Context, req CreateOrderRequest) (*Order, e
 		CustomerEmail: req.CustomerEmail,
 		TotalPrice:    p.Price * req.Quantity,
 		Status:        StatusCreated,
+		PaymentStatus: PaymentStatusPending,
+		PaidAmount:    0,
 	}
 
 	if err := s.orders.Create(ctx, order); err != nil {

@@ -4,10 +4,10 @@ import (
 	"log"
 	"time"
 
-	"github.com/example/order-monitoring-api-broken/internal/config"
-	ordermodel "github.com/example/order-monitoring-api-broken/internal/order"
-	paymentmodel "github.com/example/order-monitoring-api-broken/internal/payment"
-	productmodel "github.com/example/order-monitoring-api-broken/internal/product"
+	"github.com/example/order-monitoring-api-fixed/internal/config"
+	ordermodel "github.com/example/order-monitoring-api-fixed/internal/order"
+	paymentmodel "github.com/example/order-monitoring-api-fixed/internal/payment"
+	productmodel "github.com/example/order-monitoring-api-fixed/internal/product"
 
 	"gorm.io/driver/postgres"
 	"gorm.io/gorm"

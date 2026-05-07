@@ -1,0 +1,442 @@
+{
+  "info": {
+    "name": "Order Monitoring API",
+    "description": "Коллекция для быстрого тестирования обеих версий проекта.\n\nВерсии и порты:\n- broken-version -> http://localhost:8080\n- fixed-version -> http://localhost:8081\n\nHost-порты PostgreSQL изменены на 5433 и 5434, но эта коллекция работает только с HTTP API.\n\nПосле импорта в Postman откройте нужную папку и сразу видно, к какой версии идёт запрос.",
+    "schema": "https://schema.getpostman.com/json/collection/v2.1.0/collection.json"
+  },
+  "variable": [
+    {
+      "key": "broken_base_url",
+      "value": "http://localhost:8080",
+      "type": "string"
+    },
+    {
+      "key": "fixed_base_url",
+      "value": "http://localhost:8081",
+      "type": "string"
+    },
+    {
+      "key": "broken_order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fixed_order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fixed_manual_order_number",
+      "value": "POSTMAN-FIXED-001",
+      "type": "string"
+    }
+  ],
+  "item": [
+    {
+      "name": "Broken Version · localhost:8080",
+      "description": "Сценарии для broken-version. Здесь есть запросы, которые специально приводят к ошибкам или нежелательному поведению.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broken_base_url}}/health",
+            "description": "Проверка, что broken-version поднята на порту 8080."
+          },
+          "response": []
+        },
+        {
+          "name": "Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broken_base_url}}/products",
+            "description": "Список товаров из broken-version."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order · success with explicit order_number",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let data = null;",
+                  "try { data = pm.response.json(); } catch (e) {}",
+                  "if (data && data.id) {",
+                  "  pm.collectionVariables.set('broken_order_id', String(data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"broken-success@example.com\",\n  \"order_number\": \"BROKEN-{{$timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders",
+            "description": "Успешное создание заказа в broken-version. Используется явный уникальный order_number, чтобы не попасть в демонстрационный duplicate bug. ID заказа сохраняется в переменную broken_order_id."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Created Order By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broken_base_url}}/orders/{{broken_order_id}}",
+            "description": "Получение заказа из broken-version по ID, который был сохранён после Create Order."
+          },
+          "response": []
+        },
+        {
+          "name": "Capture Payment For Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{broken_base_url}}/orders/{{broken_order_id}}/payments",
+            "description": "Обычная одиночная оплата заказа в broken-version."
+          },
+          "response": []
+        },
+        {
+          "name": "List Payments For Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broken_base_url}}/orders/{{broken_order_id}}/payments",
+            "description": "Показывает список платежей. После нагрузочного запуска у broken-version здесь может оказаться несколько записей."
+          },
+          "response": []
+        },
+        {
+          "name": "Duplicate Bug Demo · first request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"duplicate@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders",
+            "description": "Первый запрос без order_number. В broken-version backend подставляет фиксированный ORDER-DEMO-DUPLICATE."
+          },
+          "response": []
+        },
+        {
+          "name": "Duplicate Bug Demo · second request (expect 500)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"duplicate@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders",
+            "description": "Повтор того же запроса. Ожидается ошибка unique constraint / duplicate key из-за фиксированного order_number."
+          },
+          "response": []
+        },
+        {
+          "name": "Discount Panic Demo (expect 500 / panic recovery)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 1000,\n  \"discount_percent\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders/discount",
+            "description": "Демонстрация panic в broken-version: discount_percent = 0 приводит к division by zero."
+          },
+          "response": []
+        },
+        {
+          "name": "Slow Request Demo (~3s)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"slow@example.com\",\n  \"order_number\": \"SLOW-{{$timestamp}}\",\n  \"simulate_slow\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders",
+            "description": "Запрос для broken-version, который должен выполняться примерно 3 секунды."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Fixed Version · localhost:8081",
+      "description": "Сценарии для fixed-version. Здесь те же места проверяются уже как исправленное поведение.",
+      "item": [
+        {
+          "name": "Health",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{fixed_base_url}}/health",
+            "description": "Проверка, что fixed-version поднята на порту 8081."
+          },
+          "response": []
+        },
+        {
+          "name": "Products",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{fixed_base_url}}/products",
+            "description": "Список товаров из fixed-version."
+          },
+          "response": []
+        },
+        {
+          "name": "Create Order · success and save id",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "let data = null;",
+                  "try { data = pm.response.json(); } catch (e) {}",
+                  "if (data && data.id) {",
+                  "  pm.collectionVariables.set('fixed_order_id', String(data.id));",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"fixed-success@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders",
+            "description": "Успешное создание заказа в fixed-version. Backend сам генерирует уникальный order_number. ID сохраняется в переменную fixed_order_id."
+          },
+          "response": []
+        },
+        {
+          "name": "Get Created Order By ID",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{fixed_base_url}}/orders/{{fixed_order_id}}",
+            "description": "Получение заказа из fixed-version по ID, который был сохранён после Create Order."
+          },
+          "response": []
+        },
+        {
+          "name": "Capture Payment For Order",
+          "request": {
+            "method": "POST",
+            "header": [],
+            "url": "{{fixed_base_url}}/orders/{{fixed_order_id}}/payments",
+            "description": "Обычная одиночная оплата заказа в fixed-version."
+          },
+          "response": []
+        },
+        {
+          "name": "List Payments For Order",
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{fixed_base_url}}/orders/{{fixed_order_id}}/payments",
+            "description": "В fixed-version после параллельной нагрузки здесь должна остаться одна запись."
+          },
+          "response": []
+        },
+        {
+          "name": "Discount Validation Demo (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 1000,\n  \"discount_percent\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders/discount",
+            "description": "Проверка исправления panic: fixed-version должна вернуть 400 с сообщением про discount_percent."
+          },
+          "response": []
+        },
+        {
+          "name": "Discount Success",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 1000,\n  \"discount_percent\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders/discount",
+            "description": "Корректный расчёт скидки в fixed-version."
+          },
+          "response": []
+        },
+        {
+          "name": "Simulate Slow Disabled (expect 400)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"slow@example.com\",\n  \"simulate_slow\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders",
+            "description": "Проверка, что simulate_slow отключён в fixed-version и возвращает контролируемую 400 ошибку."
+          },
+          "response": []
+        },
+        {
+          "name": "Manual Order Number · first request",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"manual-number@example.com\",\n  \"order_number\": \"{{fixed_manual_order_number}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders",
+            "description": "Первое создание заказа с ручным order_number в fixed-version. Должно пройти успешно."
+          },
+          "response": []
+        },
+        {
+          "name": "Manual Order Number · repeat same request (expect 409)",
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"manual-number@example.com\",\n  \"order_number\": \"{{fixed_manual_order_number}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders",
+            "description": "Повтор того же order_number в fixed-version. Ожидается контролируемый HTTP 409 вместо падения."
+          },
+          "response": []
+        }
+      ]
+    }
+  ]
+}

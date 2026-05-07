@@ -7,9 +7,9 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
-	ordermodule "github.com/example/order-monitoring-api-broken/internal/order"
-	paymentmodule "github.com/example/order-monitoring-api-broken/internal/payment"
-	productmodule "github.com/example/order-monitoring-api-broken/internal/product"
+	ordermodule "github.com/example/order-monitoring-api-fixed/internal/order"
+	paymentmodule "github.com/example/order-monitoring-api-fixed/internal/payment"
+	productmodule "github.com/example/order-monitoring-api-fixed/internal/product"
 )
 
 func New(db *gorm.DB) *gin.Engine {
@@ -29,7 +29,7 @@ func New(db *gorm.DB) *gin.Engine {
 	orderHandler := ordermodule.NewHandler(orderService, orderRepo)
 
 	paymentRepo := paymentmodule.NewRepository(db)
-	paymentService := paymentmodule.NewService(paymentRepo, orderRepo)
+	paymentService := paymentmodule.NewService(db, paymentRepo, orderRepo)
 	paymentHandler := paymentmodule.NewHandler(paymentService)
 
 	r.GET("/health", func(c *gin.Context) {
