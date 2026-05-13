@@ -7,6 +7,7 @@ import (
 	"github.com/gin-gonic/gin"
 	"gorm.io/gorm"
 
+	"github.com/example/order-monitoring-api-broken/internal/logging"
 	ordermodule "github.com/example/order-monitoring-api-broken/internal/order"
 	paymentmodule "github.com/example/order-monitoring-api-broken/internal/payment"
 	productmodule "github.com/example/order-monitoring-api-broken/internal/product"
@@ -14,7 +15,7 @@ import (
 
 func New(db *gorm.DB) *gin.Engine {
 	r := gin.New()
-	r.Use(gin.Logger())
+	r.Use(logging.GinMiddleware())
 	r.Use(gin.Recovery())
 	r.Use(sentrygin.New(sentrygin.Options{
 		Repanic:         true,

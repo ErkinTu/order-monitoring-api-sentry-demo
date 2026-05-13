@@ -18,6 +18,8 @@ fixed-version/   — исправленная версия с валидацие
 - Docker Compose
 - Sentry Go SDK
 - Sentry Gin middleware
+- Elastic Cloud (elastic.co)
+- Structured logging (`log/slog`)
 
 ## Запуск
 
@@ -40,6 +42,19 @@ cp .env.example .env
 
 docker compose up --build
 ```
+
+## Логирование и Elastic
+
+Приложение пишет structured JSON-логи в stdout и может дополнительно отправлять их в Elasticsearch (Elastic Cloud).
+
+Основные переменные:
+
+- `LOG_LEVEL=debug|info|warn|error`
+- `ELASTIC_ENABLED=true`
+- `ELASTIC_CLOUD_ID=<Cloud ID>` или `ELASTIC_URL=<https://...>`
+- `ELASTIC_API_KEY=<base64_api_key_or_id:key>`
+- альтернатива API key: `ELASTIC_USERNAME` + `ELASTIC_PASSWORD`
+- `ELASTIC_INDEX_PREFIX=order-monitoring-logs`
 
 ## Быстрая проверка
 

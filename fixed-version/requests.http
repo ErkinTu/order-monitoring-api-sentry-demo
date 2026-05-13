@@ -29,10 +29,10 @@ Content-Type: application/json
 
 {
   "price": 1000,
-  "discount_percent": 0
+  "discount_percent": 10
 }
 
-### Slow request demo
+### Create order (explicit order number)
 POST http://localhost:8081/orders
 Content-Type: application/json
 
@@ -40,8 +40,7 @@ Content-Type: application/json
   "product_id": 1,
   "quantity": 1,
   "customer_email": "slow@example.com",
-  "order_number": "SLOW-001",
-  "simulate_slow": true
+  "order_number": "ORD-MANUAL-001"
 }
 
 ### Race verification from shell

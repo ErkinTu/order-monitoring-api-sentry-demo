@@ -14,8 +14,15 @@
 ```bash
 cp .env.example .env
 # вставьте SENTRY_DSN в .env, если нужен реальный Sentry
+# для Elastic включите ELASTIC_ENABLED=true и заполните ELASTIC_* переменные
 docker compose up --build
 ```
+
+## Логирование и Elastic
+
+- Логи пишутся в JSON (`slog`) в stdout.
+- При `ELASTIC_ENABLED=true` те же логи отправляются в Elasticsearch (`elastic.co`).
+- Для подключения укажите `ELASTIC_CLOUD_ID` + `ELASTIC_API_KEY` (или `ELASTIC_URL` + креды).
 
 Проверка:
 
