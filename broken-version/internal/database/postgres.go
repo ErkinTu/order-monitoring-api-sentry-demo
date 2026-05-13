@@ -1,7 +1,7 @@
 package database
 
 import (
-	"log"
+	"log/slog"
 	"time"
 
 	"github.com/example/order-monitoring-api-broken/internal/config"
@@ -19,12 +19,12 @@ func ConnectWithRetry(cfg config.Config) (*gorm.DB, error) {
 	for attempt := 1; attempt <= 10; attempt++ {
 		db, err := gorm.Open(postgres.Open(cfg.DatabaseDSN), &gorm.Config{})
 		if err == nil {
-			log.Println("database connected")
+			slog.Info("database connected")
 			return db, nil
 		}
 
 		lastErr = err
-		log.Printf("database connection attempt %d failed: %v", attempt, err)
+		slog.Warn("database connection attempt failed", "attempt", attempt, "error", err)
 		time.Sleep(2 * time.Second)
 	}
 

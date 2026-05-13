@@ -29,6 +29,31 @@
       "key": "fixed_manual_order_number",
       "value": "POSTMAN-FIXED-001",
       "type": "string"
+    },
+    {
+      "key": "client_iterations",
+      "value": "8",
+      "type": "string"
+    },
+    {
+      "key": "client_delay_ms",
+      "value": "600",
+      "type": "string"
+    },
+    {
+      "key": "concurrent_payment_requests",
+      "value": "12",
+      "type": "string"
+    },
+    {
+      "key": "broken_load_order_id",
+      "value": "",
+      "type": "string"
+    },
+    {
+      "key": "fixed_load_order_id",
+      "value": "",
+      "type": "string"
     }
   ],
   "item": [
@@ -218,6 +243,886 @@
             },
             "url": "{{broken_base_url}}/orders",
             "description": "Запрос для broken-version, который должен выполняться примерно 3 секунды."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Presentation Runner · Broken Load",
+      "description": "Запускайте эту папку через Postman Collection Runner. Она имитирует поток клиентов за короткий период: просмотр товаров, создание заказов, чтение заказа, расчет скидки. После цикла запускаются демонстрационные ошибки broken-version.",
+      "item": [
+        {
+          "name": "Broken Load · Start",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('broken API is available', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set('broken_client_i', '0');",
+                  "pm.collectionVariables.set('broken_run_session', String(Date.now()));",
+                  "pm.collectionVariables.set('broken_load_order_id', '');",
+                  "pm.execution.setNextRequest('Broken Load · Browse products');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broken_base_url}}/health",
+            "description": "Старт сценария: сбрасывает счетчики Runner и проверяет доступность broken-version."
+          },
+          "response": []
+        },
+        {
+          "name": "Broken Load · Browse products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('products loaded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.execution.setNextRequest('Broken Load · Create client order');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broken_base_url}}/products",
+            "description": "Клиент открывает каталог товаров."
+          },
+          "response": []
+        },
+        {
+          "name": "Broken Load · Create client order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const i = Number(pm.collectionVariables.get('broken_client_i') || 0) + 1;",
+                  "const session = pm.collectionVariables.get('broken_run_session') || Date.now();",
+                  "pm.collectionVariables.set('client_email', `broken-client-${session}-${i}@example.com`);",
+                  "pm.collectionVariables.set('client_quantity', String((i % 3) + 1));",
+                  "pm.collectionVariables.set('client_order_number', `BROKEN-LOAD-${session}-${i}`);"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('order created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.collectionVariables.set('broken_load_order_id', String(data.id));",
+                  "const i = Number(pm.collectionVariables.get('broken_client_i') || 0) + 1;",
+                  "pm.collectionVariables.set('broken_client_i', String(i));",
+                  "pm.execution.setNextRequest('Broken Load · Get client order');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": {{client_quantity}},\n  \"customer_email\": \"{{client_email}}\",\n  \"order_number\": \"{{client_order_number}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders",
+            "description": "Клиент создает заказ. Для основной нагрузки order_number уникальный, чтобы поток не остановился на duplicate bug раньше времени."
+          },
+          "response": []
+        },
+        {
+          "name": "Broken Load · Get client order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('order is readable', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.execution.setNextRequest('Broken Load · Calculate normal discount');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broken_base_url}}/orders/{{broken_load_order_id}}",
+            "description": "Клиент обновляет экран заказа."
+          },
+          "response": []
+        },
+        {
+          "name": "Broken Load · Calculate normal discount",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('discount calculated', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const delay = Number(pm.collectionVariables.get('client_delay_ms') || 0);",
+                  "const until = Date.now() + delay;",
+                  "while (Date.now() < until) {}",
+                  "const i = Number(pm.collectionVariables.get('broken_client_i') || 0);",
+                  "const max = Number(pm.collectionVariables.get('client_iterations') || 1);",
+                  "if (i < max) {",
+                  "  pm.execution.setNextRequest('Broken Load · Browse products');",
+                  "} else {",
+                  "  pm.execution.setNextRequest('Broken Load · Duplicate order first');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 1000,\n  \"discount_percent\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders/discount",
+            "description": "Обычный расчет скидки внутри пользовательского потока."
+          },
+          "response": []
+        },
+        {
+          "name": "Broken Load · Duplicate order first",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.execution.setNextRequest('Broken Load · Duplicate order second');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"broken-duplicate-runner@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders",
+            "description": "Первый запрос без order_number. В broken-version backend подставляет фиксированный ORDER-DEMO-DUPLICATE."
+          },
+          "response": []
+        },
+        {
+          "name": "Broken Load · Duplicate order second",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('broken duplicate becomes server error', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([500]);",
+                  "});",
+                  "pm.execution.setNextRequest('Broken Load · Discount panic');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"broken-duplicate-runner@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders",
+            "description": "Второй такой же запрос показывает 500 и запись ошибки в мониторинге/логах."
+          },
+          "response": []
+        },
+        {
+          "name": "Broken Load · Discount panic",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('broken discount panic is visible', function () {",
+                  "  pm.expect(pm.response.code).to.be.oneOf([500]);",
+                  "});",
+                  "pm.execution.setNextRequest('Broken Load · Slow request');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 1000,\n  \"discount_percent\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders/discount",
+            "description": "Финальный баг в сценарии: division by zero, который хорошо виден в Sentry и Elastic."
+          },
+          "response": []
+        },
+        {
+          "name": "Broken Load · Slow request",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('slow request still creates order', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"broken-slow-runner@example.com\",\n  \"order_number\": \"BROKEN-SLOW-{{$timestamp}}\",\n  \"simulate_slow\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders",
+            "description": "Медленный запрос примерно на 3 секунды для графиков latency."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Presentation Runner · Fixed Load",
+      "description": "Та же последовательность для fixed-version. Для демонстрации достаточно запустить эту папку после Broken Load и сравнить HTTP-коды, latency и ошибки в Elastic/Sentry.",
+      "item": [
+        {
+          "name": "Fixed Load · Start",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('fixed API is available', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.collectionVariables.set('fixed_client_i', '0');",
+                  "pm.collectionVariables.set('fixed_run_session', String(Date.now()));",
+                  "pm.collectionVariables.set('fixed_duplicate_order_number', `FIXED-RUNNER-DUPLICATE-${Date.now()}`);",
+                  "pm.collectionVariables.set('fixed_load_order_id', '');",
+                  "pm.execution.setNextRequest('Fixed Load · Browse products');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{fixed_base_url}}/health",
+            "description": "Старт такого же сценария для fixed-version."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Load · Browse products",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('products loaded', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.execution.setNextRequest('Fixed Load · Create client order');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{fixed_base_url}}/products",
+            "description": "Клиент открывает каталог товаров."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Load · Create client order",
+          "event": [
+            {
+              "listen": "prerequest",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const i = Number(pm.collectionVariables.get('fixed_client_i') || 0) + 1;",
+                  "const session = pm.collectionVariables.get('fixed_run_session') || Date.now();",
+                  "pm.collectionVariables.set('client_email', `fixed-client-${session}-${i}@example.com`);",
+                  "pm.collectionVariables.set('client_quantity', String((i % 3) + 1));"
+                ]
+              }
+            },
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('order created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.collectionVariables.set('fixed_load_order_id', String(data.id));",
+                  "const i = Number(pm.collectionVariables.get('fixed_client_i') || 0) + 1;",
+                  "pm.collectionVariables.set('fixed_client_i', String(i));",
+                  "pm.execution.setNextRequest('Fixed Load · Get client order');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": {{client_quantity}},\n  \"customer_email\": \"{{client_email}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders",
+            "description": "Тот же пользовательский поток, но fixed-version сам генерирует уникальный order_number."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Load · Get client order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('order is readable', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "pm.execution.setNextRequest('Fixed Load · Calculate normal discount');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{fixed_base_url}}/orders/{{fixed_load_order_id}}",
+            "description": "Клиент обновляет экран заказа."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Load · Calculate normal discount",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('discount calculated', function () {",
+                  "  pm.response.to.have.status(200);",
+                  "});",
+                  "const delay = Number(pm.collectionVariables.get('client_delay_ms') || 0);",
+                  "const until = Date.now() + delay;",
+                  "while (Date.now() < until) {}",
+                  "const i = Number(pm.collectionVariables.get('fixed_client_i') || 0);",
+                  "const max = Number(pm.collectionVariables.get('client_iterations') || 1);",
+                  "if (i < max) {",
+                  "  pm.execution.setNextRequest('Fixed Load · Browse products');",
+                  "} else {",
+                  "  pm.execution.setNextRequest('Fixed Load · Duplicate order first');",
+                  "}"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 1000,\n  \"discount_percent\": 10\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders/discount",
+            "description": "Обычный расчет скидки внутри пользовательского потока."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Load · Duplicate order first",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.execution.setNextRequest('Fixed Load · Duplicate order second');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"fixed-duplicate-runner@example.com\",\n  \"order_number\": \"{{fixed_duplicate_order_number}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders",
+            "description": "Первый ручной order_number проходит успешно."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Load · Duplicate order second",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('fixed duplicate is controlled conflict', function () {",
+                  "  pm.response.to.have.status(409);",
+                  "});",
+                  "pm.execution.setNextRequest('Fixed Load · Discount validation');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"fixed-duplicate-runner@example.com\",\n  \"order_number\": \"{{fixed_duplicate_order_number}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders",
+            "description": "Повтор показывает исправление: 409 вместо 500."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Load · Discount validation",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('invalid discount is validation error', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.execution.setNextRequest('Fixed Load · Slow request rejected');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"price\": 1000,\n  \"discount_percent\": 0\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders/discount",
+            "description": "Тот же запрос больше не вызывает panic, а возвращает 400."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Load · Slow request rejected",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('simulate_slow is rejected', function () {",
+                  "  pm.response.to.have.status(400);",
+                  "});",
+                  "pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"fixed-slow-runner@example.com\",\n  \"simulate_slow\": true\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders",
+            "description": "Медленный режим отключен: запрос завершается быстро и контролируемо."
+          },
+          "response": []
+        }
+      ]
+    },
+    {
+      "name": "Race Condition Demo · Concurrent Payments",
+      "description": "Отдельная демонстрация double charge. Postman Collection Runner выполняет запросы последовательно, поэтому конкурентность создается внутри одного запроса через pm.sendRequest.",
+      "item": [
+        {
+          "name": "Broken Race · Create order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('race order created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.collectionVariables.set('broken_race_order_id', String(data.id));",
+                  "pm.execution.setNextRequest('Broken Race · Concurrent payment burst');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"broken-race@example.com\",\n  \"order_number\": \"BROKEN-RACE-{{$timestamp}}\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{broken_base_url}}/orders",
+            "description": "Создает заказ для конкурентной оплаты в broken-version."
+          },
+          "response": []
+        },
+        {
+          "name": "Broken Race · Concurrent payment burst",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const orderId = pm.collectionVariables.get('broken_race_order_id');",
+                  "const total = Number(pm.collectionVariables.get('concurrent_payment_requests') || 12);",
+                  "const baseUrl = pm.collectionVariables.get('broken_base_url');",
+                  "const statuses = [];",
+                  "let completed = 0;",
+                  "for (let i = 0; i < total; i++) {",
+                  "  pm.sendRequest({",
+                  "    url: `${baseUrl}/orders/${orderId}/payments`,",
+                  "    method: 'POST'",
+                  "  }, function (err, res) {",
+                  "    completed++;",
+                  "    statuses.push(err ? 'ERR' : String(res.code));",
+                  "    if (completed === total) {",
+                  "      pm.collectionVariables.set('broken_race_statuses', statuses.join(','));",
+                  "      console.log('Broken concurrent payment statuses:', statuses.join(','));",
+                  "    }",
+                  "  });",
+                  "}",
+                  "pm.execution.setNextRequest('Broken Race · List payments');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broken_base_url}}/orders/{{broken_race_order_id}}/payments",
+            "description": "Технический запрос, внутри которого Postman одновременно отправляет несколько POST /payments."
+          },
+          "response": []
+        },
+        {
+          "name": "Broken Race · List payments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payments = pm.response.json();",
+                  "console.log('Broken race payment count:', payments.length);",
+                  "pm.test('broken can create more than one payment under race', function () {",
+                  "  pm.expect(payments.length).to.be.above(1);",
+                  "});",
+                  "pm.execution.setNextRequest('Fixed Race · Create order');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{broken_base_url}}/orders/{{broken_race_order_id}}/payments",
+            "description": "В broken-version здесь обычно видно несколько платежей для одного заказа."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Race · Create order",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "pm.test('race order created', function () {",
+                  "  pm.response.to.have.status(201);",
+                  "});",
+                  "const data = pm.response.json();",
+                  "pm.collectionVariables.set('fixed_race_order_id', String(data.id));",
+                  "pm.execution.setNextRequest('Fixed Race · Concurrent payment burst');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "POST",
+            "header": [
+              {
+                "key": "Content-Type",
+                "value": "application/json"
+              }
+            ],
+            "body": {
+              "mode": "raw",
+              "raw": "{\n  \"product_id\": 1,\n  \"quantity\": 1,\n  \"customer_email\": \"fixed-race@example.com\"\n}",
+              "options": {
+                "raw": {
+                  "language": "json"
+                }
+              }
+            },
+            "url": "{{fixed_base_url}}/orders",
+            "description": "Создает заказ для конкурентной оплаты в fixed-version."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Race · Concurrent payment burst",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const orderId = pm.collectionVariables.get('fixed_race_order_id');",
+                  "const total = Number(pm.collectionVariables.get('concurrent_payment_requests') || 12);",
+                  "const baseUrl = pm.collectionVariables.get('fixed_base_url');",
+                  "const statuses = [];",
+                  "let completed = 0;",
+                  "for (let i = 0; i < total; i++) {",
+                  "  pm.sendRequest({",
+                  "    url: `${baseUrl}/orders/${orderId}/payments`,",
+                  "    method: 'POST'",
+                  "  }, function (err, res) {",
+                  "    completed++;",
+                  "    statuses.push(err ? 'ERR' : String(res.code));",
+                  "    if (completed === total) {",
+                  "      pm.collectionVariables.set('fixed_race_statuses', statuses.join(','));",
+                  "      console.log('Fixed concurrent payment statuses:', statuses.join(','));",
+                  "    }",
+                  "  });",
+                  "}",
+                  "pm.execution.setNextRequest('Fixed Race · List payments');"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{fixed_base_url}}/orders/{{fixed_race_order_id}}/payments",
+            "description": "Технический запрос, внутри которого Postman одновременно отправляет несколько POST /payments."
+          },
+          "response": []
+        },
+        {
+          "name": "Fixed Race · List payments",
+          "event": [
+            {
+              "listen": "test",
+              "script": {
+                "type": "text/javascript",
+                "exec": [
+                  "const payments = pm.response.json();",
+                  "console.log('Fixed race payment count:', payments.length);",
+                  "pm.test('fixed keeps exactly one captured payment', function () {",
+                  "  pm.expect(payments.length).to.eql(1);",
+                  "});",
+                  "pm.execution.setNextRequest(null);"
+                ]
+              }
+            }
+          ],
+          "request": {
+            "method": "GET",
+            "header": [],
+            "url": "{{fixed_base_url}}/orders/{{fixed_race_order_id}}/payments",
+            "description": "В fixed-version должен остаться один платеж, остальные конкурентные запросы получают 409."
           },
           "response": []
         }

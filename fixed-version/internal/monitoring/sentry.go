@@ -1,7 +1,7 @@
 package monitoring
 
 import (
-	"log"
+	"log/slog"
 
 	"github.com/getsentry/sentry-go"
 	sentrygin "github.com/getsentry/sentry-go/gin"
@@ -12,7 +12,7 @@ import (
 
 func InitSentry(cfg config.Config) error {
 	if cfg.SentryDSN == "" {
-		log.Println("SENTRY_DSN is empty: Sentry events will not be delivered")
+		slog.Info("sentry is disabled because SENTRY_DSN is empty")
 		return nil
 	}
 
@@ -26,7 +26,7 @@ func InitSentry(cfg config.Config) error {
 		return err
 	}
 
-	log.Println("Sentry initialized")
+	slog.Info("sentry initialized")
 	return nil
 }
 
