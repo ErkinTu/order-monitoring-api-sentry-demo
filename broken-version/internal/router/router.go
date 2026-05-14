@@ -11,6 +11,7 @@ import (
 	ordermodule "github.com/example/order-monitoring-api-broken/internal/order"
 	paymentmodule "github.com/example/order-monitoring-api-broken/internal/payment"
 	productmodule "github.com/example/order-monitoring-api-broken/internal/product"
+	swaggermodule "github.com/example/order-monitoring-api-broken/internal/swagger"
 )
 
 func New(db *gorm.DB) *gin.Engine {
@@ -36,6 +37,7 @@ func New(db *gorm.DB) *gin.Engine {
 	r.GET("/health", func(c *gin.Context) {
 		c.JSON(http.StatusOK, gin.H{"status": "ok"})
 	})
+	swaggermodule.Register(r)
 
 	r.GET("/products", productHandler.List)
 	r.POST("/orders", orderHandler.Create)

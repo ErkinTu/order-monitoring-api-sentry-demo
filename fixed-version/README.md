@@ -31,6 +31,18 @@ curl http://localhost:8081/health
 curl http://localhost:8081/products
 ```
 
+Swagger UI:
+
+```txt
+http://localhost:8081/swagger/index.html
+```
+
+OpenAPI JSON:
+
+```txt
+http://localhost:8081/swagger/doc.json
+```
+
 ## Проверка исправления 1: discount validation
 
 ```bash

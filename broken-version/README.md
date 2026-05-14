@@ -24,6 +24,18 @@ curl http://localhost:8080/health
 curl http://localhost:8080/products
 ```
 
+Swagger UI:
+
+```txt
+http://localhost:8080/swagger/index.html
+```
+
+OpenAPI JSON:
+
+```txt
+http://localhost:8080/swagger/doc.json
+```
+
 ## Ошибка 1: panic / division by zero
 
 ```bash

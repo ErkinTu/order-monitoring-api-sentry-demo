@@ -63,6 +63,18 @@ curl http://localhost:8080/health
 curl http://localhost:8081/health
 ```
 
+## Swagger
+
+После запуска версий Swagger UI доступен по адресам:
+
+- broken-version: http://localhost:8080/swagger/index.html
+- fixed-version: http://localhost:8081/swagger/index.html
+
+OpenAPI JSON:
+
+- broken-version: http://localhost:8080/swagger/doc.json
+- fixed-version: http://localhost:8081/swagger/doc.json
+
 ## Что демонстрирует проект
 
 1. Panic при расчете скидки с `discount_percent = 0` в `broken-version`.
